@@ -10,7 +10,7 @@ from .utils import run_command
 
 logger = logging.getLogger(__name__)
 
-class SGETaskSubmitter(object):
+class CondorTaskSubmitter(object):
     submit_command = 'qsub -wd {wd} -V -e /dev/null -o /dev/null -t {start}-{njobs}:1 {job_opts} {executable}'
     regex_submit = re.compile('Your job-array (?P<jobid>[0-9]+)\.(?P<start>[0-9]+)-(?P<stop>[0-9]+):1 \(".*"\) has been submitted')
     def __init__(self, job_options):
@@ -26,7 +26,7 @@ class SGETaskSubmitter(object):
 
         curdir = os.getcwd()
         njobs = len(tasks)
-        executable = run_command("which pysge_worker.sh")[0].decode("utf-8")
+        executable = run_command("which conpy_worker.sh")[0].decode("utf-8")
 
         job_opts = self.job_options
         if request_user_input:

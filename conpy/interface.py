@@ -1,7 +1,7 @@
 import os
 from tqdm.auto import tqdm
 from .area import WorkingArea
-from .submitter import SGETaskSubmitter, MPTaskSubmitter
+from .submitter import CondorTaskSubmitter, MPTaskSubmitter
 from .monitor import JobMonitor
 
 def validate_tasks(tasks):
@@ -12,7 +12,7 @@ def validate_tasks(tasks):
             return False
     return True
 
-def sge_submit(
+def condor_submit(
     name, path, tasks=[], options="-q hep.q", dryrun=False, quiet=False,
     sleep=5, request_resubmission_options=True,
 ):
@@ -23,7 +23,7 @@ def sge_submit(
         )
         return []
     area = WorkingArea(os.path.abspath(path))
-    submitter = SGETaskSubmitter(" ".join(['-N {}'.format(name), options]))
+    submitter = CondorTaskSubmitter(" ".join(['-N {}'.format(name), options]))
     monitor = JobMonitor(submitter)
 
     results = []
@@ -38,7 +38,7 @@ def sge_submit(
         submitter.killall()
     return results
 
-def sge_submit_yield(
+def condor_submit_yield(
     name, path, tasks=[], options="-q hep.q", quiet=False, sleep=5,
     request_resubmission_options=True,
 ):
@@ -49,7 +49,7 @@ def sge_submit_yield(
         )
         return []
     area = WorkingArea(os.path.abspath(path))
-    submitter = SGETaskSubmitter(" ".join(['-N {}'.format(name), options]))
+    submitter = CondorTaskSubmitter(" ".join(['-N {}'.format(name), options]))
     monitor = JobMonitor(submitter)
 
     area.create_areas(tasks, quiet=quiet)
@@ -58,12 +58,12 @@ def sge_submit_yield(
         sleep=sleep, request_user_input=request_resubmission_options,
     )
 
-def sge_resume(
+def condor_resume(
     name, path, options="-q hep.q", quiet=False, sleep=5,
     request_resubmission_options=True,
 ):
     area = WorkingArea(os.path.abspath(path), resume=True)
-    submitter = SGETaskSubmitter(" ".join(['-N {}'.format(name), options]))
+    submitter = CondorTaskSubmitter(" ".join(['-N {}'.format(name), options]))
     for idx in range(len(area.task_paths)):
         submitter.jobid_tasks['{}'.format(idx)] = area.task_paths[idx]
     monitor = JobMonitor(submitter)

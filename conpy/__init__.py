@@ -1,5 +1,5 @@
 from .interface import (
-    local_submit, mp_submit, sge_submit, sge_submit_yield, sge_resume
+    local_submit, mp_submit, condor_submit, condor_submit_yield, condor_resume
 )
 
 import logging

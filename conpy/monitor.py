@@ -12,39 +12,13 @@ try:
 except ImportError:
     import pickle
 
-SGE_JOBSTATUS = {
+CONDOR_JOBSTATUS = {
     1: "Running",
     2: "Pending",
     3: "Suspended",
     4: "Error",
     5: "Deleted",
     6: "Finished",
-}
-
-# https://gist.github.com/cmaureir/4fa2d34bc9a1bd194af1
-SGE_JOBSTATE_CODES = {
-    # Running
-    "r": 1,
-    "t": 1,
-    "Rr": 1,
-    "Rt": 1,
-
-    # Pending
-    "qw": 2,
-    "hqw": 2,
-    "hRwq": 2,
-
-    # Suspended
-    "s": 3, "ts": 3,
-    "S": 3, "tS": 3,
-    "T": 3, "tT": 3,
-    "Rs": 3, "Rts":3, "RS":3, "RtS":3, "RT":3, "RtT": 3,
-
-    # Error
-    "Eqw": 4, "Ehqw": 4, "EhRqw": 4,
-
-    # Deleted
-    "dr": 5, "dt": 5, "dRr": 5, "ds": 5, "dS": 5, "dT": 5, "dRs": 5, "dRS": 5, "dRT": 5,
 }
 
 class JobMonitor(object):
@@ -150,7 +124,7 @@ class JobMonitor(object):
             if not '{}.{}'.format(jobid, taskid) in self.submitter.jobid_tasks.keys():
                 continue
 
-            state = SGE_JOBSTATE_CODES[ws[4]]
+            state = ws[4]
             if state not in job_status:
                 job_status[state] = []
             job_status[state].append('{}.{}'.format(jobid, taskid))

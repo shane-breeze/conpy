@@ -7,11 +7,11 @@ with open("requirements.txt", 'r') as fh:
     requirements = fh.read().splitlines()
 
 setuptools.setup(
-    name="pysge",
-    version="0.1.1",
+    name="conpy",
+    version="0.0.0",
     author="Shane Breeze",
     author_email="sdb15@ic.ac.uk",
-    scripts=["pysge/pysge_worker.py", "pysge/pysge_worker.sh"],
+    scripts=["conpy/conpy_worker.py", "conpy/conpy_worker.sh"],
     description="python interface to submit functions to an SGE batch cluster",
     long_description=long_description,
     long_description_content_type="text/markdown",
