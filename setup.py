@@ -8,11 +8,11 @@ with open("requirements.txt", 'r') as fh:
 
 setuptools.setup(
     name="conpy",
-    version="0.0.0",
+    version="0.1.0",
     author="Shane Breeze",
     author_email="sdb15@ic.ac.uk",
     scripts=["conpy/conpy_worker.py", "conpy/conpy_worker.sh"],
-    description="python interface to submit functions to an SGE batch cluster",
+    description="python interface to submit functions to a HTCondor batch cluster",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),
