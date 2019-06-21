@@ -5,17 +5,19 @@ import time
 from builtins import input
 from multiprocessing import Pool
 from tqdm.auto import tqdm
+import htcondor
 
 from .utils import run_command
 
 logger = logging.getLogger(__name__)
 
 class CondorTaskSubmitter(object):
-    submit_command = 'qsub -wd {wd} -V -e /dev/null -o /dev/null -t {start}-{njobs}:1 {job_opts} {executable}'
-    regex_submit = re.compile('Your job-array (?P<jobid>[0-9]+)\.(?P<start>[0-9]+)-(?P<stop>[0-9]+):1 \(".*"\) has been submitted')
+    regex_submit = re.compile('submitted to cluster (?P<clusterid>[0-9]+)')
     def __init__(self, job_options):
         self.job_options = job_options
         self.jobid_tasks = {}
+
+        self.schedd = htcondor.Schedd()
 
     def submit_tasks(
         self, tasks, start=0, dryrun=False, request_user_input=False,
@@ -26,32 +28,51 @@ class CondorTaskSubmitter(object):
 
         curdir = os.getcwd()
         njobs = len(tasks)
-        executable = run_command("which conpy_worker.sh")[0].decode("utf-8")
+        executable = run_command("which conpy_worker.sh")[0].rstrip("\n")
 
         job_opts = self.job_options
         if request_user_input:
             job_opts = input(
-                "Using job options '{}'. Insert new options or nothing to use "
-                "the default\n:".format(job_opts)
+                "Using job options '{}'. Insert new options (comma delimited key=val) or nothing to use "
+                "the default\n:".format(",".join("{}={}".format(k, v) for k, v in job_opts))
             )
             job_opts = job_opts if job_opts != "" else self.job_options
+        job_opts = [
+            kv.split("=")
+            for kv in job_opts.split(",")
+        ]
 
-        cmd = self.submit_command.format(
-            executable=executable, start=start+1, njobs=njobs+start,
-            job_opts=job_opts, wd=os.path.dirname(tasks[0]),
+        wd = os.path.dirname(tasks[0])
+        job = [
+            ("executable", executable),
+            ("pkg_index", "$(ProcId) + {}".format(start)),
+            ("Iwd", os.path.join(wd, "task_$INT(pkg_index,%05d)")),
+            ("log", os.path.join(wd, "log.$(ClusterId).txt")),
+            ("output", "stdout.$(ClusterId).$(ProcId).txt"),
+            ("error", "stderr.$(ClusterId).$(ProcId).txt"),
+            ("getenv", "true"),
+            ("transfer_input_files", "task.p.gz"),
+            ("should_transfer_files", "YES"),
+            ("when_to_transfer_output", "ON_EXIT"),
+        ]
+        #job.append(("+JobFlavour", "microcentury"))
+        for k, v in job_opts:
+            job.append((k, v))
+        input_ = (
+            "\n".join(["{} = {}".format(k, v) for k, v in job])
+            + "\nqueue {}".format(len(tasks))
         )
+
         if not dryrun:
-            out, err = run_command(cmd)
-            match = self.regex_submit.search(out.decode("utf-8"))
+            out, err = run_command("condor_submit", input_=input_)
+            match = self.regex_submit.search(out)
             if match is None:
-                logger.error("Malformed qsub submission string: {}".format(repr(out.decode("utf-8"))))
+                logger.error("Malformed condor_submit config:\n{}".format(input_))
                 assert RuntimeError
-            jobid = int(match.group("jobid"))
-            start = int(match.group("start"))
-            stop = int(match.group("stop"))
-            logger.info('Submitted {}.{}-{}:1'.format(jobid, start, stop))
+            jobid = int(match.group("clusterid"))
+            logger.info('Submitted {}.{}-{}:1'.format(jobid, start, len(tasks)+start-1))
         else:
-            print(cmd)
+            print(input_)
             jobid = 0
 
         for aid in range(njobs):
@@ -63,8 +84,9 @@ class CondorTaskSubmitter(object):
             tjid = jobid.split(".")[0]
             if tjid not in jids:
                 jids.append(tjid)
-        cmd = "qdel {}".format(" ".join(jids))
-        run_command(cmd)
+
+        for jid in jids:
+            self.schedd.act(htcondor.JobAction.Vacate, "ClusterId={}".format(jid))
 
 class MPTaskSubmitter(object):
     def submit_tasks(self, tasks, ncores=4, sleep=1, quiet=False):

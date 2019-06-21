@@ -1,6 +1,10 @@
 #!/bin/bash
 ulimit -c 0
-taskid=$((SGE_TASK_ID - 1))
-path=task_$(printf "%05d" ${taskid})
-cd $path
-pysge_worker.py > stdout.txt 2> stderr.txt
+export PATH=$(echo $PATH | sed 's/^\/afs\/cern\.ch\/cms\/caf\/scripts:\/cvmfs\/cms\.cern\.ch\/common:\/cvmfs\/cms\.cern\.ch\/bin:\/bin://g')
+
+echo $PATH
+echo $PYTHONPATH
+echo $LD_LIBRARY_PATH
+echo $(which python)
+
+conpy_worker.py

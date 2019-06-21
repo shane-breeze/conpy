@@ -1,6 +1,6 @@
 import os
 import logging
-import lz4.frame
+import gzip
 import time
 import copy
 from tqdm.auto import tqdm
@@ -13,12 +13,13 @@ except ImportError:
     import pickle
 
 CONDOR_JOBSTATUS = {
-    1: "Running",
-    2: "Pending",
-    3: "Suspended",
-    4: "Error",
-    5: "Deleted",
-    6: "Finished",
+    0: "Unexpanded",
+    1: "Idle",
+    2: "Running",
+    3: "Removed",
+    4: "Completed",
+    5: "Held",
+    6: "Error",
 }
 
 class JobMonitor(object):
@@ -77,17 +78,22 @@ class JobMonitor(object):
             job_statuses = self.query_jobs()
             all_queried_jobs = []
             for state, queried_jobs in job_statuses.items():
-                all_queried_jobs.extend(queried_jobs)
+                if state not in [4]:
+                    all_queried_jobs.extend(queried_jobs)
 
             jobs_not_queried = {
                 jobid: task
                 for jobid, task in self.submitter.jobid_tasks.items()
                 if jobid not in all_queried_jobs and jobid not in finished
             }
-            finished.extend(self.check_jobs(jobs_not_queried, results, request_user_input=request_user_input))
+            finished.extend(self.check_jobs(
+                jobs_not_queried, results,
+                request_user_input=request_user_input,
+            ))
 
             nremaining = ntotal - len(finished)
-            yield job_statuses.get(1, {}), results
+            # status 2==Running
+            yield job_statuses.get(2,{}), results
 
         # all jobs finished - final loop
         yield {}, results
@@ -97,9 +103,9 @@ class JobMonitor(object):
         for jobid, task in jobid_tasks.items():
             pos = int(os.path.basename(task).split("_")[-1])
             try:
-                with lz4.frame.open(os.path.join(task, "result.p.lz4"), 'rb') as f:
+                with gzip.open(os.path.join(task, "result.p.gz"), 'rb') as f:
                     pickle.load(f)
-                results[pos] = os.path.join(task, "result.p.lz4")
+                results[pos] = os.path.join(task, "result.p.gz")
                 finished.append(jobid)
             except (IOError, EOFError, pickle.UnpicklingError) as e:
                 logger.info('Resubmitting {}: {}'.format(jobid, task))
@@ -112,19 +118,16 @@ class JobMonitor(object):
 
     def query_jobs(self):
         job_status = {}
-        out, err = run_command("qstat -g d")
 
-        for l in out.decode('utf-8').splitlines():
-            if l.startswith("job-ID") or l.startswith("-----"):
-                continue
-            ws = l.split()
-            jobid = ws[0]
-            taskid = int(ws[-1])
-
+        for job in self.submitter.schedd.xquery(
+            projection=["ClusterId", "ProcId", "JobStatus"],
+        ):
+            jobid = job["ClusterId"]
+            taskid = job["ProcId"]
+            state = job["JobStatus"]
             if not '{}.{}'.format(jobid, taskid) in self.submitter.jobid_tasks.keys():
                 continue
 
-            state = ws[4]
             if state not in job_status:
                 job_status[state] = []
             job_status[state].append('{}.{}'.format(jobid, taskid))

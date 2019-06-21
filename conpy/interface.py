@@ -13,7 +13,7 @@ def validate_tasks(tasks):
     return True
 
 def condor_submit(
-    name, path, tasks=[], options="-q hep.q", dryrun=False, quiet=False,
+    name, path, tasks=[], options="", dryrun=False, quiet=False,
     sleep=5, request_resubmission_options=True,
 ):
     if not validate_tasks(tasks):
@@ -23,7 +23,7 @@ def condor_submit(
         )
         return []
     area = WorkingArea(os.path.abspath(path))
-    submitter = CondorTaskSubmitter(" ".join(['-N {}'.format(name), options]))
+    submitter = CondorTaskSubmitter(options)
     monitor = JobMonitor(submitter)
 
     results = []

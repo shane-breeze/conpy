@@ -1,3 +1,4 @@
 #!/bin/bash
-export PATH=$PATH:$PWD/pysge
-export PYTHONPATH=$PYTHONPATH:$PWD
+DIR=$(readlink -f $(dirname ${BASH_SOURCE[0]}))
+export PATH=$DIR/conpy:$PATH
+export PYTHONPATH=$DIR:$PYTHONPATH
