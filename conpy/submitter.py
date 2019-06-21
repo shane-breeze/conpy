@@ -33,13 +33,14 @@ class CondorTaskSubmitter(object):
         job_opts = self.job_options
         if request_user_input:
             job_opts = input(
-                "Using job options '{}'. Insert new options (comma delimited key=val) or nothing to use "
-                "the default\n:".format(",".join("{}={}".format(k, v) for k, v in job_opts))
+                "Using job options '{}'. Insert new options (comma delimited "
+                "key=val) or nothing to use the default\n:".format(job_opts)
             )
             job_opts = job_opts if job_opts != "" else self.job_options
         job_opts = [
             kv.split("=")
             for kv in job_opts.split(",")
+            if kv != ""
         ]
 
         wd = os.path.dirname(tasks[0])
@@ -55,11 +56,8 @@ class CondorTaskSubmitter(object):
             ("should_transfer_files", "YES"),
             ("when_to_transfer_output", "ON_EXIT"),
         ]
-        #job.append(("+JobFlavour", "microcentury"))
-        for k, v in job_opts:
-            job.append((k, v))
         input_ = (
-            "\n".join(["{} = {}".format(k, v) for k, v in job])
+            "\n".join(["{} = {}".format(k, v) for k, v in job+job_opts])
             + "\nqueue {}".format(len(tasks))
         )
 
@@ -84,9 +82,7 @@ class CondorTaskSubmitter(object):
             tjid = jobid.split(".")[0]
             if tjid not in jids:
                 jids.append(tjid)
-
-        for jid in jids:
-            self.schedd.act(htcondor.JobAction.Vacate, "ClusterId={}".format(jid))
+        run_command("condor_rm {}".format(" ".join(jids)))
 
 class MPTaskSubmitter(object):
     def submit_tasks(self, tasks, ncores=4, sleep=1, quiet=False):

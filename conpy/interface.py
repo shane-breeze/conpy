@@ -23,7 +23,7 @@ def condor_submit(
         )
         return []
     area = WorkingArea(os.path.abspath(path))
-    submitter = CondorTaskSubmitter(options)
+    submitter = CondorTaskSubmitter(",".join(['JobBatchName={}'.format(name), options]))
     monitor = JobMonitor(submitter)
 
     results = []
@@ -39,7 +39,7 @@ def condor_submit(
     return results
 
 def condor_submit_yield(
-    name, path, tasks=[], options="-q hep.q", quiet=False, sleep=5,
+    name, path, tasks=[], options="", quiet=False, sleep=5,
     request_resubmission_options=True,
 ):
     if not validate_tasks(tasks):
@@ -49,7 +49,7 @@ def condor_submit_yield(
         )
         return []
     area = WorkingArea(os.path.abspath(path))
-    submitter = CondorTaskSubmitter(" ".join(['-N {}'.format(name), options]))
+    submitter = CondorTaskSubmitter(",".join(['JobBatchName={}'.format(name), options]))
     monitor = JobMonitor(submitter)
 
     area.create_areas(tasks, quiet=quiet)
